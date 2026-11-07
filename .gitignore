@@ -1,0 +1,5 @@
+data/
+node_modules/
+*.mp4
+*.tar
+.env

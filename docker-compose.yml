@@ -1,0 +1,14 @@
+services:
+  viralshort:
+    build: .
+    ports: ["3000:3000"]
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:?définis APP_PASSWORD (8 caractères minimum)}
+      OLLAMA_URL: http://ollama:11434
+      CHAT_MODEL: qwen2.5:7b
+    volumes: ["data:/data"]
+    depends_on: [ollama]
+  ollama:
+    image: ollama/ollama
+    volumes: ["ollama:/root/.ollama"]
+volumes: { data: {}, ollama: {} }

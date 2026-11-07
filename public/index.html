@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ViralShort AI</title>
+<style>
+:root{--bg:#0c0c10;--panel:#15151b;--line:#2b2b35;--text:#eeeef2;--mut:#8f8f9c;--acc:#ffd700;--accT:#16130a;--bad:#ff6b6b;--ok:#4cd68a}
+@media(prefers-color-scheme:light){:root{--bg:#f5f5f8;--panel:#fff;--line:#dcdce4;--text:#16161c;--mut:#666674;--acc:#c79a00;--accT:#fff;--bad:#c0392b;--ok:#1f9d5c}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:0 0 10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,select,button,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+input[type=text],input[type=password],select{width:100%}
+button{cursor:pointer}button.pri{background:var(--acc);border-color:var(--acc);color:var(--accT);font-weight:700;padding:10px 18px}
+button.sec{padding:5px 10px;font-size:13px}button:disabled{opacity:.5;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips label{margin:0;display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 10px;color:var(--text);cursor:pointer}
+.bar{height:10px;background:var(--bg);border:1px solid var(--line);border-radius:99px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.clip{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--bg)}
+.clip video{width:100%;aspect-ratio:9/16;background:#000;border-radius:8px}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.mut{color:var(--mut);font-size:13px}.err{color:var(--bad)}.ok{color:var(--ok)}
+.score{font-weight:700;color:var(--acc)}.tabs button{padding:3px 9px;font-size:12px}.tabs button.on{background:var(--acc);color:var(--accT);border-color:var(--acc)}
+details summary{cursor:pointer;font-size:13px;color:var(--mut);margin-top:8px}
+#login{max-width:340px;margin:18vh auto}
+</style></head><body><main>
+<div id="login" class="card" hidden><h1>ViralShort AI</h1><label for="pw">Mot de passe</label><input id="pw" type="password" autocomplete="current-password"><p id="lerr" class="err" role="alert"></p><button class="pri" id="lbtn">Entrer</button></div>
+<div id="app" hidden>
+<h1>ViralShort AI</h1><p class="mut" id="ai"></p>
+<section class="card" aria-label="Nouvelle vidéo"><h2>1. Importer une vidéo longue</h2>
+<input id="file" type="file" accept="video/*">
+<div class="row"><div style="flex:1;min-width:160px"><label for="src">Langue de la vidéo</label><select id="src"><option value="auto">Détection automatique</option></select></div>
+<div style="width:170px"><label for="count">Nombre de Shorts</label><select id="count"><option value="0">L’IA décide</option><option>1</option><option>3</option><option>5</option><option>8</option><option>10</option></select></div></div>
+<label>Langues de sortie (vide = langue d’origine)</label><div class="chips" id="langs"></div>
+<p class="mut">N’importe que des vidéos dont tu as les droits.</p>
+<button class="pri" id="go">GÉNÉRER MES SHORTS</button> <span id="up" class="mut"></span><p id="gerr" class="err" role="alert"></p></section>
+<div id="projects" aria-live="polite"></div></div>
+<script>
+const $=(i)=>document.getElementById(i);let CFG={};
+async function api(m,p,b){const h={'x-viralshort':'1'};if(b)h['content-type']='application/json';const r=await fetch('/api/'+p,{method:m,headers:h,body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({}));if(r.status===401&&p!=='login'){show(false);throw new Error('Connexion requise')}if(!r.ok)throw new Error(j.error||'Erreur '+r.status);return j}
+function show(ok){$('login').hidden=ok;$('app').hidden=!ok}
+function el(t,props,...kids){const e=document.createElement(t);Object.assign(e,props||{});kids.flat().forEach(k=>e.append(k));return e}
+async function boot(){try{CFG=await api('GET','config');show(true);
+$('ai').textContent=CFG.ai?'IA locale prête ('+CFG.model+')':'IA locale injoignable : les passages seront choisis par une méthode simplifiée et les traductions échoueront.';
+$('ai').className=CFG.ai?'mut':'mut err';
+Object.entries(CFG.languages).forEach(([k,v])=>{$('src').append(el('option',{value:k,textContent:v}));const l=el('label',{},el('input',{type:'checkbox',value:k}),v);$('langs').append(l)});
+refresh()}catch(e){show(false)}}
+$('lbtn').onclick=async()=>{try{await api('POST','login',{password:$('pw').value});$('lerr').textContent='';boot()}catch(e){$('lerr').textContent=e.message}};
+$('pw').onkeydown=(e)=>{if(e.key==='Enter')$('lbtn').click()};
+$('go').onclick=()=>{const f=$('file').files[0];$('gerr').textContent='';if(!f){$('gerr').textContent='Choisis une vidéo.';return}
+const langs=[...document.querySelectorAll('#langs input:checked')].map(i=>i.value).join(',');
+const q='name='+encodeURIComponent(f.name)+'&source='+$('src').value+'&langs='+langs+'&count='+$('count').value;
+const x=new XMLHttpRequest();x.open('POST','/api/projects?'+q);x.setRequestHeader('x-viralshort','1');$('go').disabled=true;
+x.upload.onprogress=(e)=>{if(e.lengthComputable)$('up').textContent='Envoi : '+Math.round(e.loaded/e.total*100)+' %'};
+x.onload=()=>{$('go').disabled=false;$('up').textContent='';if(x.status!==200){try{$('gerr').textContent=JSON.parse(x.responseText).error}catch(e){$('gerr').textContent='Erreur '+x.status}}else{$('file').value='';refresh()}};
+x.onerror=()=>{$('go').disabled=false;$('gerr').textContent='Envoi interrompu'};x.send(f)};
+let timer,open={};
+async function refresh(){clearTimeout(timer);try{const{projects}=await api('GET','projects');render(projects);if(projects.some(p=>p.state==='running'||p.state==='queued'||Object.values(p.clips||[]).some(c=>Object.values(c.versions).some(v=>v.state==='running'))))timer=setTimeout(refresh,2000)}catch(e){}}
+function render(ps){const box=$('projects');if(box.contains(document.activeElement)&&document.activeElement.tagName==='INPUT'&&document.activeElement.type!=='file'){timer=setTimeout(refresh,2000);return}
+box.textContent='';ps.forEach(p=>box.append(project(p)))}
+function project(p){const c=el('section',{className:'card'});
+const head=el('div',{className:'row'},el('h2',{textContent:p.name,style:'flex:1;margin:0'}));
+const st={queued:'En attente',running:p.stageLabel||'En cours',done:'Terminé',failed:'Échec'}[p.state];
+head.append(el('span',{className:'mut',textContent:st+(p.analysis==='heuristique'?' · sélection simplifiée (sans IA)':'')}));
+if(p.state==='done'){head.append(el('a',{href:'/api/projects/'+p.id+'/export',textContent:'Tout exporter (.tar)'}))}
+if(p.state==='failed')head.append(el('button',{className:'sec',textContent:'Relancer',onclick:async()=>{await api('POST','projects/'+p.id+'/retry');refresh()}}));
+head.append(el('button',{className:'sec',textContent:'Supprimer',onclick:async()=>{if(confirm('Supprimer ce projet ?')){await api('DELETE','projects/'+p.id);refresh()}}}));
+c.append(head);
+if(p.state==='running'||p.state==='queued'){c.append(el('div',{className:'bar',role:'progressbar'},el('i',{style:'width:'+(p.progress||0)+'%'})),el('p',{className:'mut',textContent:(p.progress||0)+' % · '+(p.stageLabel||'')+(p.detail?' — '+p.detail:'')}))}
+if(p.error)c.append(el('p',{className:'err',textContent:p.error}));
+if(p.clips&&p.clips.length){const g=el('div',{className:'gal'});p.clips.forEach(cl=>g.append(clip(p,cl)));c.append(g)}
+return c}
+function clip(p,cl){const key=p.id+cl.id;const langs=Object.keys(cl.versions);const cur=open[key]&&cl.versions[open[key]]?open[key]:langs[0];
+const v=cl.versions[cur]||{};const d=el('div',{className:'clip'});
+if(langs.length>1){const t=el('div',{className:'tabs row'});langs.forEach(l=>t.append(el('button',{textContent:l.toUpperCase(),className:l===cur?'on':'',onclick:()=>{open[key]=l;refresh()}})));d.append(t)}
+if(v.state==='done'){const vid=el('video',{controls:true,playsInline:true,preload:'metadata',poster:v.thumb?'/api/projects/'+p.id+'/clips/'+cl.id+'/'+cur+'/thumb':''});vid.src='/api/projects/'+p.id+'/clips/'+cl.id+'/'+cur+'/video';d.append(vid)}
+else d.append(el('p',{className:v.state==='failed'?'err':'mut',textContent:v.state==='failed'?(v.error||'Échec'):'Rendu en cours…'}));
+d.append(el('p',{style:'font-weight:600;margin:8px 0 2px',textContent:v.title||cl.title}));
+d.append(el('p',{className:'mut',textContent:(v.duration||Math.round(cl.end-cl.start))+' s · '+cur.toUpperCase()+' · '+(cl.wordCount||'?')+' mots'}));
+d.append(el('p',{className:'mut'},'Potentiel viral estimé : ',el('span',{className:'score',textContent:cl.score+'/100'}),' (avis de l’IA, non mesuré)'));
+if(cl.hashtags&&cl.hashtags.length)d.append(el('p',{className:'mut',textContent:cl.hashtags.join(' ')}));
+const r=el('div',{className:'row'});
+if(v.state==='done')r.append(el('a',{href:'/api/projects/'+p.id+'/clips/'+cl.id+'/'+cur+'/video',download:cl.id+'_'+cur+'.mp4',textContent:'Télécharger'}));
+r.append(el('button',{className:'sec',textContent:'Régénérer',disabled:p.state!=='done',onclick:async()=>{try{await api('POST','projects/'+p.id+'/clips/'+cl.id+'/render',{lang:cur});refresh()}catch(e){alert(e.message)}}}));
+const sel=el('select',{style:'width:auto;font-size:13px',disabled:p.state!=='done'},el('option',{value:'',textContent:'Traduire en…'}));Object.entries(CFG.languages).filter(([k])=>!cl.versions[k]).forEach(([k,n])=>sel.append(el('option',{value:k,textContent:n})));
+sel.onchange=async()=>{if(!sel.value)return;try{open[key]=sel.value;await api('POST','projects/'+p.id+'/clips/'+cl.id+'/render',{lang:sel.value});refresh()}catch(e){alert(e.message)}};r.append(sel);d.append(r);
+const det=el('details',{},el('summary',{textContent:'Modifier'}));
+const ti=el('input',{type:'text',value:cl.title,'aria-label':'Titre'});const s0=el('input',{type:'number',step:'0.1',value:cl.start.toFixed(1),style:'width:90px','aria-label':'Début'});const e0=el('input',{type:'number',step:'0.1',value:cl.end.toFixed(1),style:'width:90px','aria-label':'Fin'});
+const cx=el('input',{type:'range',min:0,max:1,step:0.05,value:cl.cropX,'aria-label':'Cadrage horizontal'});
+det.append(el('label',{textContent:'Titre'}),ti,el('label',{textContent:'Début / fin (secondes)'}),el('div',{className:'row'},s0,e0),el('label',{textContent:'Cadrage horizontal (gauche → droite)'}),cx,
+el('p',{},el('button',{className:'sec',textContent:'Enregistrer et régénérer',disabled:p.state!=='done',onclick:async()=>{try{await api('PATCH','projects/'+p.id+'/clips/'+cl.id,{title:ti.value,start:+s0.value,end:+e0.value,cropX:+cx.value});await api('POST','projects/'+p.id+'/clips/'+cl.id+'/render',{lang:cur});refresh()}catch(e){alert(e.message)}}})));
+d.append(det);return d}
+boot();
+</script></main></body></html>
